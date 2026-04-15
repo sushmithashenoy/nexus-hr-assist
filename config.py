@@ -15,10 +15,9 @@ load_dotenv()
 
 # Set "./assets" as the path where assets are stored, resolving the absolute path:
 ASSET_PATH = pathlib.Path(__file__).parent.resolve() / "assets"
-subscription_id=os.environ["AZURE_SUBSCRIPTION_ID"], 
-resource_group_name=os.environ["AZURE_RESOURCE_GROUP_NAME"], 
-project_name=os.environ["AZURE_PROJECT_NAME"], 
-credential=os.environ["AZURE_AI_API_KEY"]
+subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
+resource_group_name = os.environ["AZURE_RESOURCE_GROUP_NAME"]
+project_name = os.environ["AZURE_PROJECT_NAME"]
 
 # Configure an root app logger that prints info level logs to stdout
 logger = logging.getLogger("app")

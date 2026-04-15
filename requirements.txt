@@ -7,3 +7,7 @@ python-dotenv
 opentelemetry-api
 azure-ai-projects
 python-docx
+fastapi
+uvicorn[standard]
+requests
+streamlit

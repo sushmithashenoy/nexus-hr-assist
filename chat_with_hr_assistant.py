@@ -44,6 +44,42 @@ def chat_with_sub_documents(messages: list, context: dict = None) -> dict:
     return {"message": response.choices[0].message, "context": context}
 
 
+def run_chat(query: str) -> dict:
+    """Run grounded HR chat and return a JSON-serializable result for APIs and UIs."""
+    result = chat_with_sub_documents(messages=[{"role": "user", "content": query}])
+    msg = result["message"]
+    ctx = result["context"]
+
+    documents: list[dict] = []
+    for batch in ctx.get("grounding_data") or []:
+        documents.extend(batch)
+
+    seen: set[str] = set()
+    unique_docs: list[dict] = []
+    for i, doc in enumerate(documents):
+        doc_id = doc.get("id") or f"__{i}"
+        if doc_id in seen:
+            continue
+        seen.add(doc_id)
+        unique_docs.append(
+            {
+                "id": doc_id,
+                "title": doc.get("title"),
+                "content": doc.get("content", ""),
+                "filepath": doc.get("filepath"),
+                "url": doc.get("url"),
+            }
+        )
+
+    content = getattr(msg, "content", None) or str(msg)
+    return {
+        "answer": content,
+        "role": getattr(msg, "role", "assistant"),
+        "documents": unique_docs,
+        "thoughts": ctx.get("thoughts") or [],
+    }
+
+
 if __name__ == "__main__":
     import argparse
 
