@@ -25,10 +25,9 @@ The implementation of this intelligent chatbot system combines:
   ```
 
 ## How to run the Nexus HR assistant chat on terminal
-- To run the chat :
-  ```bash
-  python chat_with_hr_assistant.py --query "<your question>"
-  ```
+```bash
+python chat_with_hr_assistant.py --query "<your question>"
+```
 
 ### Examples
 
@@ -66,13 +65,13 @@ python chat_with_hr_assistant.py --query "What is the policy on Parental Leave?"
 💬I don't have the details on Parental Leave in the policy excerpts I have. For your specific situation, please contact Human Resources. I couldn’t find the answer to your query, however according to my knowledge, many companies offer parental leave to support employees after the birth or adoption of a child, often including a certain number of paid or unpaid weeks. HR can provide you with Nexus Innovations' exact provisions if available.  
 
 
- ```bash
- python chat_with_hr_assistant.py --query "How long can I avail sick leaves wihtout doctors receipt?"
+```bash
+python chat_with_hr_assistant.py --query "How long can I avail sick leaves wihtout doctors receipt?"
 ```
 
 💬According to the Nexus Innovations leave policy, employees must provide a doctor's note or other medical documentation for sick leave absences of three or more consecutive days, or for a pattern of absences that suggests verification is needed. Therefore, you can avail sick leave for up to two consecutive days without a doctor's receipt. For longer absences, medical documentation is required.  
 
- ```bash
+```bash
 python chat_with_hr_assistant.py --query "Can you make some fashion recommendations??"
 ```
 

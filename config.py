@@ -1,5 +1,3 @@
-print("✅ Script started")
-
 import os
 import sys
 import pathlib
