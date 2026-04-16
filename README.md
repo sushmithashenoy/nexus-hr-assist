@@ -1,3 +1,11 @@
+Nexus HR Assist is an HR assistant chatbot designed for Nexus Innovations employees that uses Retrieval-Augmented Generation (RAG) technology. It is a full-stack application combining modern NLP/LLM capabilities with a web-based chat interface to make HR information easily accessible to employees through conversational AI.
+
+## Implementation
+The implementation of this intelligent chatbot system combines:
+- RAG (Retrieval-Augmented Generation): Retrieves relevant HR information from a knowledge base and uses it to generate accurate, context-aware responses
+- HR assistance: Helps employees with HR-related queries, policies, benefits, procedures, and other employee-related questions
+- Conversational interface: Provides a chat-based interface for natural interaction
+
 ## How to run the Nexus HR assistant chat 
 ```python chat_with_hr_assistant.py --query "What are the standard office hours?"```
 
