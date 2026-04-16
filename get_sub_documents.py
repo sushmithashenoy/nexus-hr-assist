@@ -24,8 +24,8 @@ search_connection = project.connections.get_default(
     connection_type=ConnectionType.AZURE_AI_SEARCH, include_credentials=True
 )
 
-# Create a search index client using the search connection
-# This client will be used to create and delete search indexes
+# Create a search client using the search connection
+# This client will be used to fetch sub-documents from the search index
 search_client = SearchClient(
     index_name=os.environ["AISEARCH_INDEX_NAME"],
     endpoint=search_connection.endpoint_url,
