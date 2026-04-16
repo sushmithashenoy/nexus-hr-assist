@@ -138,12 +138,40 @@ def read_docx(path: str) -> str:
     return "\n".join(paragraphs)
 
 def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str]:
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start = end - overlap
+    """Split into ~``chunk_size``-char chunks at spaces; overlap carries across chunks."""
+    n = len(text)
+
+    def exclusive_end(lo: int, cap: int) -> int:
+        """Index after chunk text: last space before ``cap``, or next space if no word fits."""
+        if cap >= n:
+            return n
+        last = text.rfind(" ", lo + 1, cap)
+        if last > lo:
+            return last
+        nxt = text.find(" ", cap)
+        return nxt if nxt != -1 else n
+
+    chunks: list[str] = []
+    i = 0
+    while i < n:
+        while i < n and text[i].isspace():
+            i += 1
+        if i >= n:
+            break
+        j = exclusive_end(i, min(i + chunk_size, n))
+        piece = text[i:j].strip()
+        if piece:
+            chunks.append(piece)
+        if j >= n:
+            break
+        nxt = j - overlap
+        if nxt <= i:
+            nxt = j + 1
+        else:
+            sp = text.rfind(" ", i, nxt + 1)
+            if sp >= i:
+                nxt = sp + 1
+        i = nxt
     return chunks
 
 def create_docs_from_docx(
