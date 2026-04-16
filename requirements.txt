@@ -4,7 +4,6 @@ azure-identity
 azure-search-documents
 pandas
 python-dotenv
-opentelemetry-api
 azure-ai-projects
 python-docx
 fastapi

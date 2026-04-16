@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from opentelemetry import trace
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import ConnectionType
 from azure.identity import DefaultAzureCredential
@@ -10,7 +9,6 @@ from config import ASSET_PATH, get_logger
 
 # initialize logging and tracing objects
 logger = get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 # create a project client using environment variables loaded from the .env file
 project = AIProjectClient.from_connection_string(
@@ -38,7 +36,6 @@ from azure.ai.inference.prompts import PromptTemplate
 from azure.search.documents.models import VectorizedQuery
 
 
-@tracer.start_as_current_span(name="get_sub_documents")
 def get_sub_documents(messages: list, context: dict = None) -> dict:
     if context is None:
         context = {}

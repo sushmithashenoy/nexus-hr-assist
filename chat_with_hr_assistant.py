@@ -1,15 +1,13 @@
 import os
 from pathlib import Path
-from opentelemetry import trace
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
-from config import ASSET_PATH, get_logger, enable_telemetry
+from config import ASSET_PATH, get_logger
 from get_sub_documents import get_sub_documents
 
 
 # initialize logging and tracing objects
 logger = get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 # create a project client using environment variables loaded from the .env file
 project = AIProjectClient.from_connection_string(
@@ -22,7 +20,6 @@ chat = project.inference.get_chat_completions_client()
 from azure.ai.inference.prompts import PromptTemplate
 
 
-@tracer.start_as_current_span(name="chat_with_sub_documents")
 def chat_with_sub_documents(messages: list, context: dict = None) -> dict:
     if context is None:
         context = {}
@@ -91,14 +88,8 @@ if __name__ == "__main__":
         help="Query to use to search subdocuments",
         default="What are the standard office hours?",
     )
-    parser.add_argument(
-        "--enable-telemetry",
-        action="store_true",
-        help="Enable sending telemetry back to the project",
-    )
+
     args = parser.parse_args()
-    if args.enable_telemetry:
-        enable_telemetry(True)
 
     # run chat with subdocuments
     response = chat_with_sub_documents(messages=[{"role": "user", "content": args.query}])
