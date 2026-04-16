@@ -5,7 +5,7 @@ import traceback
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from chat_with_hr_assistant import run_chat
 
@@ -31,8 +31,28 @@ app.add_middleware(
 )
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
 class ChatRequest(BaseModel):
-    query: str = Field(..., min_length=1, description="User question for HR policy search")
+    query: str | None = Field(
+        default=None,
+        description="Single user question (used when messages is omitted)",
+    )
+    messages: list[ChatMessage] | None = Field(
+        default=None,
+        description="Full conversation (role/content); include prior turns so follow-ups resolve context",
+    )
+
+    @model_validator(mode="after")
+    def require_query_or_messages(self) -> "ChatRequest":
+        if self.messages and len(self.messages) > 0:
+            return self
+        if self.query is not None and self.query.strip():
+            return self
+        raise ValueError("Provide either a non-empty query or a non-empty messages list")
 
 
 class DocumentChunk(BaseModel):
@@ -58,7 +78,10 @@ def health() -> dict[str, str]:
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
     try:
-        payload = run_chat(req.query.strip())
+        if req.messages and len(req.messages) > 0:
+            payload = run_chat(messages=[m.model_dump() for m in req.messages])
+        else:
+            payload = run_chat(query=req.query.strip())
         return ChatResponse(**payload)
     except Exception as e:
         traceback.print_exc()

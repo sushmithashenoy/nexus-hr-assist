@@ -19,6 +19,15 @@ chat = project.inference.get_chat_completions_client()
 
 from azure.ai.inference.prompts import PromptTemplate
 
+# Cap how much prior chat we send to stay within model context limits.
+_MAX_CONVERSATION_MESSAGES = 40
+
+
+def _trim_conversation(messages: list[dict]) -> list[dict]:
+    if len(messages) <= _MAX_CONVERSATION_MESSAGES:
+        return messages
+    return messages[-_MAX_CONVERSATION_MESSAGES :]
+
 
 def chat_with_sub_documents(messages: list, context: dict = None) -> dict:
     if context is None:
@@ -41,9 +50,18 @@ def chat_with_sub_documents(messages: list, context: dict = None) -> dict:
     return {"message": response.choices[0].message, "context": context}
 
 
-def run_chat(query: str) -> dict:
-    """Run grounded HR chat and return a JSON-serializable result for APIs and UIs."""
-    result = chat_with_sub_documents(messages=[{"role": "user", "content": query}])
+def run_chat(query: str | None = None, messages: list[dict] | None = None) -> dict:
+    """Run grounded HR chat and return a JSON-serializable result for APIs and UIs.
+
+    Pass either ``messages`` (full thread, last turn should be the current user message)
+    or ``query`` for a single-turn request (backward compatible).
+    """
+    if messages:
+        msgs = _trim_conversation([dict(m) for m in messages])
+    else:
+        q = (query or "").strip()
+        msgs = [{"role": "user", "content": q}]
+    result = chat_with_sub_documents(messages=msgs)
     msg = result["message"]
     ctx = result["context"]
 
