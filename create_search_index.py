@@ -1,6 +1,7 @@
 import os
 import argparse
 import uuid
+import json
 
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import ConnectionType
@@ -8,6 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
+from click import prompt
 from config import get_logger
 from docx import Document
 from pathlib import Path
@@ -39,10 +41,13 @@ from azure.search.documents.indexes.models import (
 logger = get_logger(__name__)
 
 project = AIProjectClient.from_connection_string(
-        conn_str=os.environ["AIPROJECT_CONNECTION_STRING"], credential=DefaultAzureCredential()
+    conn_str=os.environ["AIPROJECT_CONNECTION_STRING"],
+    credential=DefaultAzureCredential(),
 )
 # create a vector embeddings client that will be used to generate vector embeddings
 embeddings = project.inference.get_embeddings_client()
+
+chat = project.inference.get_chat_completions_client()
 
 # use the project client to get the default search connection
 search_connection = project.connections.get_default(
@@ -52,7 +57,8 @@ search_connection = project.connections.get_default(
 # Create a search index client using the search connection
 # This client will be used to create and delete search indexes
 index_client = SearchIndexClient(
-    endpoint=search_connection.endpoint_url, credential=AzureKeyCredential(key=search_connection.key)
+    endpoint=search_connection.endpoint_url,
+    credential=AzureKeyCredential(key=search_connection.key),
 )
 
 
@@ -66,6 +72,11 @@ def create_index_definition(index_name: str, model: str) -> SearchIndex:
     fields = [
         SimpleField(name="id", type=SearchFieldDataType.String, key=True),
         SearchableField(name="content", type=SearchFieldDataType.String),
+        SearchableField(name="summary", type=SearchFieldDataType.String),
+        SearchField(
+            name="keywords",
+            type=SearchFieldDataType.Collection(SearchFieldDataType.String),
+        ),
         SimpleField(name="filepath", type=SearchFieldDataType.String),
         SearchableField(name="title", type=SearchFieldDataType.String),
         SimpleField(name="url", type=SearchFieldDataType.String),
@@ -107,7 +118,9 @@ def create_index_definition(index_name: str, model: str) -> SearchIndex:
             ExhaustiveKnnAlgorithmConfiguration(
                 name="myExhaustiveKnn",
                 kind=VectorSearchAlgorithmKind.EXHAUSTIVE_KNN,
-                parameters=ExhaustiveKnnParameters(metric=VectorSearchAlgorithmMetric.COSINE),
+                parameters=ExhaustiveKnnParameters(
+                    metric=VectorSearchAlgorithmMetric.COSINE
+                ),
             ),
         ],
         profiles=[
@@ -133,21 +146,24 @@ def create_index_definition(index_name: str, model: str) -> SearchIndex:
         vector_search=vector_search,
     )
 
+
 def read_docx(path: str) -> str:
     doc = Document(path)
     paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
     return "\n".join(paragraphs)
 
+
 def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str]:
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, 
-        chunk_overlap=overlap, 
-        separators=["\n\n", "\n", ". ", " ", ""]
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+        separators=["\n\n", "\n", ". ", " ", ""],
     )
     chunks = splitter.split_text(text)
-   
+
     return [chunk for chunk in chunks if chunk.strip()]
+
 
 def create_docs_from_docx(
     docx_paths: list[str],
@@ -158,18 +174,60 @@ def create_docs_from_docx(
     for path in docx_paths:
         full_text = read_docx(path)
         chunks = chunk_text(full_text)
-         ## print each chunk before returning
-        for i, chunk in enumerate(chunks):
-            logger.info(f"Chunk {i+1}: {chunk[:50]}...")  # print the first 50 characters of each chunk
-
         title = Path(path).stem.replace("_", " ").title()
 
         for i, chunk in enumerate(chunks):
             emb = embeddings.embed(input=chunk, model=model)
+            prompt = f"""
+                    You are an information extraction assistant.
+
+                    TASK:
+                    From the given text, extract:
+                    1. A concise summary (max 3 sentences)
+                    2. 5–10 relevant keywords
+
+                    RULES:
+                    - Be factual and avoid adding new information
+                    - Keywords should be single words or short phrases
+                    - Avoid duplicates
+                    - Output MUST be valid JSON (no extra text)
+
+                    FORMAT:
+                    {{
+                         "summary": "string",
+                         "keywords": ["string"]
+                    }}
+
+                    TEXT:
+                        \"\"\"{chunk}\"\"\"
+                    """
+
+            response = chat.complete(
+                messages=[
+                    {"role": "system", "content": "You extract structured insights."},
+                    {"role": "user", "content": prompt},
+                ],
+                model=os.environ["CHAT_MODEL"],
+                temperature=0.2,
+            )
+
+            content = response.choices[0].message.content
+
+            # Parse JSON safely
+            try:
+                result = json.loads(content)
+                summary = result.get("summary", "")
+                keywords = result.get("keywords", [])
+            except json.JSONDecodeError:
+                summary = ""
+                keywords = []
+                print("Invalid JSON response:", content)
 
             rec = {
                 "id": str(uuid.uuid4()),
                 "content": chunk,
+                "summary": summary,
+                "keywords": keywords,
                 "filepath": path,
                 "title": title,
                 "url": f"/docs/{Path(path).name}",
@@ -211,6 +269,7 @@ def create_index_from_docx(index_name: str, docx_files: list[str]):
     search_client.upload_documents(docs)
     logger.info(f"➕ Uploaded {len(docs)} chunks to '{index_name}'")
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -234,7 +293,7 @@ def main():
         index_name=args.index_name,
         docx_files=args.docx_files,
     )
-    
+
+
 if __name__ == "__main__":
     main()
-
