@@ -62,6 +62,8 @@ def main() -> None:
         st.session_state.messages.append(
             {"role": "assistant", "content": data.get("answer", "")}
         )
+        if len(st.session_state.messages) > 5:
+            st.session_state.messages.pop(0)
         st.session_state.last_payload = data
         st.rerun()
 
