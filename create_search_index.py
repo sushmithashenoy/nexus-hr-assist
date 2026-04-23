@@ -11,6 +11,7 @@ from azure.search.documents.indexes import SearchIndexClient
 from config import get_logger
 from docx import Document
 from pathlib import Path
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 import pandas as pd
@@ -138,41 +139,15 @@ def read_docx(path: str) -> str:
     return "\n".join(paragraphs)
 
 def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str]:
-    """Split into ~``chunk_size``-char chunks at spaces; overlap carries across chunks."""
-    n = len(text)
 
-    def exclusive_end(lo: int, cap: int) -> int:
-        """Index after chunk text: last space before ``cap``, or next space if no word fits."""
-        if cap >= n:
-            return n
-        last = text.rfind(" ", lo + 1, cap)
-        if last > lo:
-            return last
-        nxt = text.find(" ", cap)
-        return nxt if nxt != -1 else n
-
-    chunks: list[str] = []
-    i = 0
-    while i < n:
-        while i < n and text[i].isspace():
-            i += 1
-        if i >= n:
-            break
-        j = exclusive_end(i, min(i + chunk_size, n))
-        piece = text[i:j].strip()
-        if piece:
-            chunks.append(piece)
-        if j >= n:
-            break
-        nxt = j - overlap
-        if nxt <= i:
-            nxt = j + 1
-        else:
-            sp = text.rfind(" ", i, nxt + 1)
-            if sp >= i:
-                nxt = sp + 1
-        i = nxt
-    return chunks
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size, 
+        chunk_overlap=overlap, 
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+    chunks = splitter.split_text(text)
+   
+    return [chunk for chunk in chunks if chunk.strip()]
 
 def create_docs_from_docx(
     docx_paths: list[str],
@@ -183,6 +158,9 @@ def create_docs_from_docx(
     for path in docx_paths:
         full_text = read_docx(path)
         chunks = chunk_text(full_text)
+         ## print each chunk before returning
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Chunk {i+1}: {chunk[:50]}...")  # print the first 50 characters of each chunk
 
         title = Path(path).stem.replace("_", " ").title()
 
@@ -244,8 +222,8 @@ def main():
         "--docx-files",
         nargs="+",
         default=[
-            "assets/employee_handbook.docx",
-            "assets/leave_policy.docx",
+            "assets/Employee_handbook.docx",
+            "assets/Leave_policy.docx",
         ],
         help="List of DOCX files to index",
     )
